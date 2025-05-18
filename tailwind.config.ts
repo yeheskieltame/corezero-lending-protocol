@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// CoreZero custom colors
+				corezero: {
+					purple: '#8B5CF6',
+					darkpurple: '#7E69AB',
+					light: '#D6BCFA',
+					dark: '#1A1F2C',
+					accent: '#0EA5E9',
 				}
 			},
 			borderRadius: {
@@ -84,12 +93,46 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'fade-in': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(10px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
+				},
+				'pulse-slow': {
+					'0%, 100%': {
+						opacity: '1'
+					},
+					'50%': {
+						opacity: '0.8'
+					}
+				},
+				'glow': {
+					'0%, 100%': {
+						'box-shadow': '0 0 10px rgba(139, 92, 246, 0.5)'
+					},
+					'50%': {
+						'box-shadow': '0 0 20px rgba(139, 92, 246, 0.7)'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
-			}
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.5s ease-out forwards',
+				'pulse-slow': 'pulse-slow 3s ease-in-out infinite',
+				'glow': 'glow 2s ease-in-out infinite'
+			},
+			backgroundImage: {
+				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+				'hero-pattern': 'linear-gradient(120deg, #1A1F2C, #2D3748)',
+				'card-gradient': 'linear-gradient(135deg, rgba(126, 105, 171, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)'
+			},
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
