@@ -1,15 +1,7 @@
 
-import { ethers, parseEther, formatEther } from 'ethers';
+import { ethers, parseEther, formatEther, Contract } from 'ethers';
 import { CoreZeroLendingABI } from '../lib/abis/CoreZeroLendingABI';
 import { CONTRACT_ADDRESSES } from '../lib/constants';
-
-export enum LoanState {
-  PENDING = 0,
-  ACTIVE = 1,
-  COMPLETED = 2,
-  DEFAULTED = 3,
-  CANCELLED = 4
-}
 
 export interface LoanProposal {
   id: number;
@@ -21,7 +13,7 @@ export interface LoanProposal {
   projectDescription: string;
   reputationScore: number;
   votes: number;
-  state: LoanState;
+  state: number;
   createdAt: number;
   activatedAt: number;
   totalRepaid: string;
@@ -29,7 +21,7 @@ export interface LoanProposal {
 
 class CoreZeroLendingService {
   private provider: ethers.BrowserProvider | null = null;
-  private contract: ethers.Contract | null = null;
+  private contract: Contract | null = null;
 
   constructor() {
     if (typeof window !== 'undefined' && window.ethereum) {
@@ -42,7 +34,7 @@ class CoreZeroLendingService {
     }
   }
 
-  // Create a new loan proposal
+  // Create a loan proposal
   async createLoanProposal(
     amount: string,
     term: number,
@@ -58,7 +50,7 @@ class CoreZeroLendingService {
       const signer = await this.provider.getSigner();
       const amountWei = parseEther(amount);
 
-      const contractWithSigner = this.contract.connect(signer);
+      const contractWithSigner = this.contract.connect(signer) as Contract;
       const createTx = await contractWithSigner.createLoanProposal(
         amountWei,
         term,
@@ -66,12 +58,11 @@ class CoreZeroLendingService {
         projectName,
         projectDescription
       );
-      
       const receipt = await createTx.wait();
-      
-      // Extract loan ID from event logs
-      const loanId = receipt.logs[0]?.topics[1];
-      return parseInt(loanId, 16);
+
+      // Extract loan ID from events
+      const loanId = receipt.logs[0]?.topics[1] || 0;
+      return Number(loanId);
     } catch (error) {
       console.error("Error creating loan proposal:", error);
       throw error;
@@ -81,7 +72,7 @@ class CoreZeroLendingService {
   // Get loan proposal details
   async getLoanProposal(id: number): Promise<LoanProposal | null> {
     if (!this.contract) throw new Error("Contract not initialized");
-    
+
     try {
       const proposal = await this.contract.getLoanProposal(id);
       
@@ -116,7 +107,7 @@ class CoreZeroLendingService {
       const signer = await this.provider.getSigner();
       const amountWei = parseEther(amount);
 
-      const contractWithSigner = this.contract.connect(signer);
+      const contractWithSigner = this.contract.connect(signer) as Contract;
       const repayTx = await contractWithSigner.repayLoan(id, amountWei);
       await repayTx.wait();
 
@@ -127,7 +118,7 @@ class CoreZeroLendingService {
     }
   }
 
-  // Activate loan (admin function)
+  // Activate loan
   async activateLoan(id: number): Promise<boolean> {
     if (!this.contract || !this.provider) {
       throw new Error("Contract not initialized");
@@ -135,7 +126,7 @@ class CoreZeroLendingService {
 
     try {
       const signer = await this.provider.getSigner();
-      const contractWithSigner = this.contract.connect(signer);
+      const contractWithSigner = this.contract.connect(signer) as Contract;
       const activateTx = await contractWithSigner.activateLoan(id);
       await activateTx.wait();
 

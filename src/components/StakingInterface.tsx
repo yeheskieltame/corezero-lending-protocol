@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,7 +86,7 @@ const StakingInterface = () => {
       if (selectedCurrency === 'BTC') {
         success = await btcInsurancePoolService.stakeBTC(amount);
       } else {
-        success = await btcInsurancePoolService.stakeStCORE(amount);
+        success = await btcInsurancePoolService.stakeStCore(amount);
       }
       
       if (success) {
@@ -477,8 +476,8 @@ const StakingInterface = () => {
                       <Label htmlFor="unstake-amount">Amount</Label>
                       <span className="text-sm text-muted-foreground">
                         Staked: {selectedCurrency === 'BTC' ? 
-                          (stakerInfo ? formatNumber(stakerInfo.formattedBtcAmount, 4) : '0.00') : 
-                          (stakerInfo ? formatNumber(stakerInfo.formattedStCoreAmount, 2) : '0.00')
+                          (stakerInfo ? formatNumber(stakerInfo.btcAmount, 4) : '0.00') : 
+                          (stakerInfo ? formatNumber(stakerInfo.stCoreAmount, 2) : '0.00')
                         } {selectedCurrency}
                       </span>
                     </div>
@@ -496,8 +495,8 @@ const StakingInterface = () => {
                           size="sm" 
                           onClick={() => setAmount(
                             selectedCurrency === 'BTC' ? 
-                            (stakerInfo?.formattedBtcAmount || '0') : 
-                            (stakerInfo?.formattedStCoreAmount || '0')
+                            (stakerInfo?.btcAmount || '0') : 
+                            (stakerInfo?.stCoreAmount || '0')
                           )}
                         >
                           MAX
@@ -510,7 +509,7 @@ const StakingInterface = () => {
                     <div className="flex justify-between mb-2">
                       <span className="text-sm">Accrued Rewards</span>
                       <span className="text-sm font-medium">
-                        {stakerInfo ? formatNumber(stakerInfo.formattedRewardsClaimed, 4) : '0'} CORE
+                        {stakerInfo ? formatNumber(stakerInfo.rewardsClaimed, 4) : '0'} CORE
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -523,7 +522,7 @@ const StakingInterface = () => {
                     <Button 
                       variant="outline"
                       onClick={handleClaimRewards}
-                      disabled={isClaiming || !stakerInfo || parseFloat(stakerInfo?.formattedRewardsClaimed || '0') <= 0}
+                      disabled={isClaiming || !stakerInfo || parseFloat(stakerInfo?.rewardsClaimed || '0') <= 0}
                     >
                       {isClaiming ? 'Claiming...' : 'Withdraw Rewards Only'}
                     </Button>
@@ -561,13 +560,13 @@ const StakingInterface = () => {
                 <div className="flex justify-between text-sm">
                   <span>BTC Staked</span>
                   <span className="font-medium">
-                    {poolStats ? formatNumber(poolStats.formattedBtcAmount, 2) : '125'} BTC
+                    {poolStats ? formatNumber(poolStats.totalBTCStaked, 2) : '125'} BTC
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>stCORE Staked</span>
                   <span className="font-medium">
-                    {poolStats ? formatNumber(poolStats.formattedStCoreAmount, 0) : '75,000'} stCORE
+                    {poolStats ? formatNumber(poolStats.totalStCoreStaked, 0) : '75,000'} stCORE
                   </span>
                 </div>
               </div>
@@ -614,27 +613,27 @@ const StakingInterface = () => {
                   <div className="flex justify-between text-sm">
                     <span>BTC Staked</span>
                     <span className="font-medium">
-                      {stakerInfo ? formatNumber(stakerInfo.formattedBtcAmount, 4) : '0.0000'} BTC
+                      {stakerInfo ? formatNumber(stakerInfo.btcAmount, 4) : '0.0000'} BTC
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>stCORE Staked</span>
                     <span className="font-medium">
-                      {stakerInfo ? formatNumber(stakerInfo.formattedStCoreAmount, 2) : '0.00'} stCORE
+                      {stakerInfo ? formatNumber(stakerInfo.stCoreAmount, 2) : '0.00'} stCORE
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Staking Type</span>
                     <span className="font-medium">
-                      {stakerInfo?.stakeType === StakeType.BTC ? 'BTC Only' : 
-                       stakerInfo?.stakeType === StakeType.STCORE ? 'stCORE Only' : 
+                      {stakerInfo?.stakeType === StakeType.BTC_ONLY ? 'BTC Only' : 
+                       stakerInfo?.stakeType === StakeType.STCORE_ONLY ? 'stCORE Only' : 
                        stakerInfo?.stakeType === StakeType.DUAL ? 'Dual Staking' : 'None'}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Rewards Earned</span>
                     <span className="font-medium">
-                      {stakerInfo ? formatNumber(stakerInfo.formattedRewardsClaimed, 4) : '0.0000'} CORE
+                      {stakerInfo ? formatNumber(stakerInfo.rewardsClaimed, 4) : '0.0000'} CORE
                     </span>
                   </div>
                 </div>

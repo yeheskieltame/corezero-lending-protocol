@@ -1,21 +1,22 @@
 
-import { ethers } from 'ethers';
+import { ethers, parseEther, formatEther, Contract } from 'ethers';
 import { StCoreGovernanceABI } from '../lib/abis/StCoreGovernanceABI';
 import { TokenABI } from '../lib/abis/TokenABI';
 import { CONTRACT_ADDRESSES } from '../lib/constants';
 
 export enum ProposalState {
-  PENDING = 0,
-  ACTIVE = 1,
-  CANCELED = 2,
-  DEFEATED = 3,
-  SUCCEEDED = 4,
-  EXECUTED = 5,
-  EXPIRED = 6
+  Pending = 0,
+  Active = 1,
+  Canceled = 2,
+  Defeated = 3,
+  Succeeded = 4,
+  Queued = 5,
+  Expired = 6,
+  Executed = 7
 }
 
 export interface ProposalDetails {
-  id: string;
+  id: number;
   proposer: string;
   description: string;
   startBlock: number;
@@ -24,28 +25,22 @@ export interface ProposalDetails {
   againstVotes: string;
   canceled: boolean;
   executed: boolean;
-  state: ProposalState;
-  formattedForVotes: string;
-  formattedAgainstVotes: string;
-  totalVotes: string;
-  supportPercentage: number;
 }
 
 export interface VoteReceipt {
   hasVoted: boolean;
   support: boolean;
   votes: string;
-  formattedVotes: string;
 }
 
 class StCoreGovernanceService {
-  private provider: ethers.providers.Web3Provider | null = null;
-  private contract: ethers.Contract | null = null;
-  private stCoreTokenContract: ethers.Contract | null = null;
+  private provider: ethers.BrowserProvider | null = null;
+  private contract: Contract | null = null;
+  private stCoreTokenContract: Contract | null = null;
 
   constructor() {
     if (typeof window !== 'undefined' && window.ethereum) {
-      this.provider = new ethers.providers.Web3Provider(window.ethereum);
+      this.provider = new ethers.BrowserProvider(window.ethereum);
       this.contract = new ethers.Contract(
         CONTRACT_ADDRESSES.STCORE_GOVERNANCE,
         StCoreGovernanceABI,
@@ -59,69 +54,57 @@ class StCoreGovernanceService {
     }
   }
 
-  private async getSigner() {
-    if (!this.provider) throw new Error("Provider not initialized");
-    return this.provider.getSigner();
-  }
-
   // Get proposal details
-  async getProposalDetails(id: string): Promise<ProposalDetails> {
+  async getProposalDetails(proposalId: number): Promise<ProposalDetails | null> {
     if (!this.contract) throw new Error("Contract not initialized");
     
     try {
-      const [details, state] = await Promise.all([
-        this.contract.getProposalDetails(id),
-        this.contract.getProposalState(id)
-      ]);
-      
-      const formattedForVotes = ethers.utils.formatEther(details.forVotes);
-      const formattedAgainstVotes = ethers.utils.formatEther(details.againstVotes);
-      const totalVotes = ethers.utils.formatEther(details.forVotes.add(details.againstVotes));
-      
-      // Calculate support percentage
-      let supportPercentage = 0;
-      if (details.forVotes.gt(0) || details.againstVotes.gt(0)) {
-        supportPercentage = Math.round(
-          details.forVotes.mul(100).div(details.forVotes.add(details.againstVotes)).toNumber()
-        );
-      }
-      
+      const details = await this.contract.getProposalDetails(proposalId);
       return {
-        id: details.id.toString(),
-        proposer: details.proposer,
-        description: details.description,
-        startBlock: details.startBlock.toNumber(),
-        endBlock: details.endBlock.toNumber(),
-        forVotes: details.forVotes.toString(),
-        againstVotes: details.againstVotes.toString(),
-        canceled: details.canceled,
-        executed: details.executed,
-        state,
-        formattedForVotes,
-        formattedAgainstVotes,
-        totalVotes,
-        supportPercentage
+        id: Number(details.id || details[0]),
+        proposer: details.proposer || details[1],
+        description: details.description || details[2],
+        startBlock: Number(details.startBlock || details[3]),
+        endBlock: Number(details.endBlock || details[4]),
+        forVotes: formatEther(details.forVotes || details[5]),
+        againstVotes: formatEther(details.againstVotes || details[6]),
+        canceled: Boolean(details.canceled || details[7]),
+        executed: Boolean(details.executed || details[8])
       };
     } catch (error) {
       console.error("Error getting proposal details:", error);
-      throw error;
+      return null;
+    }
+  }
+
+  // Get proposal state
+  async getProposalState(proposalId: number): Promise<ProposalState> {
+    if (!this.contract) throw new Error("Contract not initialized");
+    
+    try {
+      const state = await this.contract.getProposalState(proposalId);
+      return Number(state);
+    } catch (error) {
+      console.error("Error getting proposal state:", error);
+      return ProposalState.Pending;
     }
   }
 
   // Create loan proposal
-  async createLoanProposal(loanId: string, description: string): Promise<string> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+  async createLoanProposal(loanId: number, description: string): Promise<number> {
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const tx = await this.contract.connect(signer).createLoanProposal(loanId, description);
-      const receipt = await tx.wait();
-      
-      // Find the event with proposal id
-      const event = receipt.events?.find(e => e.event === 'ProposalCreated');
-      const proposalId = event ? event.args.id.toString() : '0';
-      
-      return proposalId;
+      const signer = await this.provider.getSigner();
+      const contractWithSigner = this.contract.connect(signer) as Contract;
+      const createTx = await contractWithSigner.createLoanProposal(loanId, description);
+      const receipt = await createTx.wait();
+
+      // Extract proposal ID from events
+      const proposalId = receipt.logs[0]?.topics[1] || 0;
+      return Number(proposalId);
     } catch (error) {
       console.error("Error creating loan proposal:", error);
       throw error;
@@ -129,19 +112,19 @@ class StCoreGovernanceService {
   }
 
   // Cast vote on proposal
-  async castVote(proposalId: string, support: boolean): Promise<string> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+  async castVote(proposalId: number, support: boolean): Promise<string> {
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const tx = await this.contract.connect(signer).castVote(proposalId, support);
-      const receipt = await tx.wait();
-      
-      // Find the event with vote weight
-      const event = receipt.events?.find(e => e.event === 'VoteCast');
-      const votes = event ? ethers.utils.formatEther(event.args.votes) : '0';
-      
-      return votes;
+      const signer = await this.provider.getSigner();
+      const contractWithSigner = this.contract.connect(signer) as Contract;
+      const voteTx = await contractWithSigner.castVote(proposalId, support);
+      const receipt = await voteTx.wait();
+
+      const votesWei = receipt.logs[0]?.data || "0";
+      return formatEther(votesWei);
     } catch (error) {
       console.error("Error casting vote:", error);
       throw error;
@@ -149,14 +132,17 @@ class StCoreGovernanceService {
   }
 
   // Execute proposal
-  async executeProposal(proposalId: string): Promise<boolean> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+  async executeProposal(proposalId: number): Promise<boolean> {
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const tx = await this.contract.connect(signer).executeProposal(proposalId);
-      await tx.wait();
-      
+      const signer = await this.provider.getSigner();
+      const contractWithSigner = this.contract.connect(signer) as Contract;
+      const executeTx = await contractWithSigner.executeProposal(proposalId);
+      await executeTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error executing proposal:", error);
@@ -164,39 +150,39 @@ class StCoreGovernanceService {
     }
   }
 
-  // Get voting power
-  async getVotingPower(address: string): Promise<string> {
+  // Get voting power for an account
+  async getVotingPower(account: string): Promise<string> {
     if (!this.contract) throw new Error("Contract not initialized");
     
     try {
-      const votingPower = await this.contract.getVotingPower(address);
-      return ethers.utils.formatEther(votingPower);
+      const votingPower = await this.contract.getVotingPower(account);
+      return formatEther(votingPower);
     } catch (error) {
       console.error("Error getting voting power:", error);
-      return '0';
+      return "0";
     }
   }
 
   // Stake tokens for governance
   async stakeTokens(amount: string): Promise<boolean> {
-    if (!this.contract || !this.stCoreTokenContract) 
-      throw new Error("Contracts not initialized");
-    
+    if (!this.contract || !this.stCoreTokenContract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const amountWei = ethers.utils.parseEther(amount);
-      
+      const signer = await this.provider.getSigner();
+      const amountWei = parseEther(amount);
+
       // Approve tokens first
-      const tx1 = await this.stCoreTokenContract.connect(signer).approve(
-        CONTRACT_ADDRESSES.STCORE_GOVERNANCE,
-        amountWei
-      );
-      await tx1.wait();
-      
-      // Then stake
-      const tx2 = await this.contract.connect(signer).stakeTokens(amountWei);
-      await tx2.wait();
-      
+      const tokenWithSigner = this.stCoreTokenContract.connect(signer) as Contract;
+      const approveTx = await tokenWithSigner.approve(CONTRACT_ADDRESSES.STCORE_GOVERNANCE, amountWei);
+      await approveTx.wait();
+
+      // Stake tokens
+      const contractWithSigner = this.contract.connect(signer) as Contract;
+      const stakeTx = await contractWithSigner.stakeTokens(amountWei);
+      await stakeTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error staking tokens:", error);
@@ -204,21 +190,41 @@ class StCoreGovernanceService {
     }
   }
 
-  // Unstake tokens from governance
+  // Unstake tokens
   async unstakeTokens(amount: string): Promise<boolean> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const amountWei = ethers.utils.parseEther(amount);
-      
-      const tx = await this.contract.connect(signer).unstakeTokens(amountWei);
-      await tx.wait();
-      
+      const signer = await this.provider.getSigner();
+      const amountWei = parseEther(amount);
+
+      const contractWithSigner = this.contract.connect(signer) as Contract;
+      const unstakeTx = await contractWithSigner.unstakeTokens(amountWei);
+      await unstakeTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error unstaking tokens:", error);
       throw error;
+    }
+  }
+
+  // Get vote receipt for a voter on a proposal
+  async getReceipt(proposalId: number, voter: string): Promise<VoteReceipt> {
+    if (!this.contract) throw new Error("Contract not initialized");
+    
+    try {
+      const receipt = await this.contract.getReceipt(proposalId, voter);
+      return {
+        hasVoted: Boolean(receipt.hasVoted || receipt[0]),
+        support: Boolean(receipt.support || receipt[1]),
+        votes: formatEther(receipt.votes || receipt[2])
+      };
+    } catch (error) {
+      console.error("Error getting vote receipt:", error);
+      return { hasVoted: false, support: false, votes: "0" };
     }
   }
 }

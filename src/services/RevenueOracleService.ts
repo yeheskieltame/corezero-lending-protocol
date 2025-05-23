@@ -1,22 +1,21 @@
 
-import { ethers } from 'ethers';
+import { ethers, parseEther, formatEther, Contract } from 'ethers';
 import { RevenueOracleABI } from '../lib/abis/RevenueOracleABI';
 import { CONTRACT_ADDRESSES } from '../lib/constants';
 
 export interface RevenueData {
   timestamp: number;
   amount: string;
-  formattedAmount: string;
   verified: boolean;
 }
 
 class RevenueOracleService {
-  private provider: ethers.providers.Web3Provider | null = null;
-  private contract: ethers.Contract | null = null;
+  private provider: ethers.BrowserProvider | null = null;
+  private contract: Contract | null = null;
 
   constructor() {
     if (typeof window !== 'undefined' && window.ethereum) {
-      this.provider = new ethers.providers.Web3Provider(window.ethereum);
+      this.provider = new ethers.BrowserProvider(window.ethereum);
       this.contract = new ethers.Contract(
         CONTRACT_ADDRESSES.REVENUE_ORACLE,
         RevenueOracleABI,
@@ -25,40 +24,32 @@ class RevenueOracleService {
     }
   }
 
-  private async getSigner() {
-    if (!this.provider) throw new Error("Provider not initialized");
-    return this.provider.getSigner();
-  }
-
-  // Get latest verified revenue
-  async getLatestVerifiedRevenue(projectId: string): Promise<{ amount: string; timestamp: number }> {
+  // Get latest verified revenue for a project
+  async getLatestVerifiedRevenue(projectId: number): Promise<{amount: string, timestamp: number}> {
     if (!this.contract) throw new Error("Contract not initialized");
     
     try {
-      const [amount, timestamp] = await this.contract.getLatestVerifiedRevenue(projectId);
-      
+      const result = await this.contract.getLatestVerifiedRevenue(projectId);
       return {
-        amount: ethers.utils.formatEther(amount),
-        timestamp: timestamp.toNumber()
+        amount: formatEther(result.amount || result[0]),
+        timestamp: Number(result.timestamp || result[1])
       };
     } catch (error) {
       console.error("Error getting latest verified revenue:", error);
-      return { amount: '0', timestamp: 0 };
+      return { amount: "0", timestamp: 0 };
     }
   }
 
-  // Get revenue history
-  async getRevenueHistory(projectId: string, startIndex: number, count: number): Promise<RevenueData[]> {
+  // Get revenue history for a project
+  async getRevenueHistory(projectId: number, startIndex: number = 0, count: number = 10): Promise<RevenueData[]> {
     if (!this.contract) throw new Error("Contract not initialized");
     
     try {
-      const historyData = await this.contract.getRevenueHistory(projectId, startIndex, count);
-      
-      return historyData.map(data => ({
-        timestamp: data.timestamp.toNumber(),
-        amount: data.amount.toString(),
-        formattedAmount: ethers.utils.formatEther(data.amount),
-        verified: data.verified
+      const history = await this.contract.getRevenueHistory(projectId, startIndex, count);
+      return history.map((item: any) => ({
+        timestamp: Number(item.timestamp),
+        amount: formatEther(item.amount),
+        verified: Boolean(item.verified)
       }));
     } catch (error) {
       console.error("Error getting revenue history:", error);
@@ -66,17 +57,20 @@ class RevenueOracleService {
     }
   }
 
-  // Report revenue
-  async reportRevenue(projectId: string, amount: string): Promise<boolean> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+  // Report revenue for a project
+  async reportRevenue(projectId: number, amount: string): Promise<boolean> {
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const amountWei = ethers.utils.parseEther(amount);
-      
-      const tx = await this.contract.connect(signer).reportRevenue(projectId, amountWei);
-      await tx.wait();
-      
+      const signer = await this.provider.getSigner();
+      const amountWei = parseEther(amount);
+
+      const contractWithSigner = this.contract.connect(signer) as Contract;
+      const reportTx = await contractWithSigner.reportRevenue(projectId, amountWei);
+      await reportTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error reporting revenue:", error);
@@ -84,17 +78,20 @@ class RevenueOracleService {
     }
   }
 
-  // Verify revenue (for validators only)
-  async verifyRevenue(projectId: string, amount: string, timestamp: number): Promise<boolean> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+  // Verify revenue (for validators)
+  async verifyRevenue(projectId: number, amount: string, timestamp: number): Promise<boolean> {
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const amountWei = ethers.utils.parseEther(amount);
-      
-      const tx = await this.contract.connect(signer).verifyRevenue(projectId, amountWei, timestamp);
-      await tx.wait();
-      
+      const signer = await this.provider.getSigner();
+      const amountWei = parseEther(amount);
+
+      const contractWithSigner = this.contract.connect(signer) as Contract;
+      const verifyTx = await contractWithSigner.verifyRevenue(projectId, amountWei, timestamp);
+      await verifyTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error verifying revenue:", error);
