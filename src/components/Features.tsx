@@ -1,60 +1,88 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import Feature from './Feature';
-import { Wallet, PieChart, Shield, Code, CreditCard, Users } from 'lucide-react';
 
 const Features = () => {
   return (
     <section className="py-16 md:py-24 relative">
-      <div className="absolute top-1/3 right-0 w-96 h-96 bg-corezero-accent/5 rounded-full blur-3xl -z-10"></div>
-      <div className="container">
-        <div className="text-center max-w-3xl mx-auto mb-12">
+      <div className="absolute inset-0 bg-muted/30 -z-10"></div>
+      <div className="container mx-auto px-4">
+        <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Core-Native <span className="text-gradient">Features</span>
+            <span className="text-gradient">Core-Native</span> Financial Solutions
           </h2>
           <p className="text-lg text-muted-foreground">
-            CoreZero leverages Core's unique infrastructure to provide a seamless lending experience for both 
-            developers and lenders.
+            Enabling developers to build and scale with Core blockchain's unique capabilities
           </p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-          <Feature 
-            title="BTC-Backed Insurance Pool" 
-            description="Stake BTC through Core's non-custodial BTC staking to provide loan protection while earning additional yield."
-            icon={<Shield className="h-6 w-6" />}
-            delay="0.1s"
-          />
-          <Feature 
-            title="Satoshi Plus Scoring" 
-            description="Leverage Core's Satoshi Plus consensus mechanism to assess borrower creditworthiness and project viability."
-            icon={<PieChart className="h-6 w-6" />}
-            delay="0.2s"
-          />
-          <Feature 
-            title="Revenue Oracle" 
-            description="Core-native oracle that tracks project revenue in real-time to ensure transparent and automatic revenue sharing."
-            icon={<Code className="h-6 w-6" />}
-            delay="0.3s"
-          />
-          <Feature 
-            title="stCORE Governance" 
-            description="Use stCORE tokens to participate in loan approval voting and platform governance decisions."
-            icon={<Users className="h-6 w-6" />}
-            delay="0.4s"
-          />
-          <Feature 
-            title="Dual Staking Mechanism" 
-            description="Enhanced yield generation through Core's dual staking, providing better protection for lenders."
-            icon={<Wallet className="h-6 w-6" />}
-            delay="0.5s"
-          />
-          <Feature 
-            title="Protocol-Embedded Revenue Sharing" 
-            description="Automatic revenue sharing between developers and lenders embedded directly in smart contracts."
-            icon={<CreditCard className="h-6 w-6" />}
-            delay="0.6s"
-          />
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <Link to="/staking">
+            <Feature
+              title="BTC Staking"
+              description="Stake your BTC to earn stCORE rewards while contributing to Core's security and stability."
+              icon="wallet"
+              color="amber"
+              iconBgClass="bg-amber-400/10"
+              iconTextClass="text-amber-500"
+            />
+          </Link>
+          
+          <Link to="/loans">
+            <Feature
+              title="Revenue-Based Funding"
+              description="Get non-collateralized funding for Core ecosystem projects with revenue sharing."
+              icon="chevron-up"
+              color="purple"
+              iconBgClass="bg-purple-400/10"
+              iconTextClass="text-purple-500"
+            />
+          </Link>
+          
+          <Link to="/governance">
+            <Feature
+              title="Decentralized Governance"
+              description="Vote on CoreZero proposals, funding decisions, and protocol upgrades with stCORE."
+              icon="layout-dashboard"
+              color="cyan"
+              iconBgClass="bg-cyan-400/10"
+              iconTextClass="text-cyan-500"
+            />
+          </Link>
+          
+          <Link to="/dashboard">
+            <Feature
+              title="Revenue Oracle"
+              description="Transparent and verifiable revenue tracking for funded projects using oracle technology."
+              icon="layout-dashboard"
+              color="green"
+              iconBgClass="bg-green-400/10"
+              iconTextClass="text-green-500"
+            />
+          </Link>
+          
+          <Link to="/dashboard">
+            <Feature
+              title="Reputation System"
+              description="Developer reputation scoring that builds trust for uncollateralized lending."
+              icon="settings"
+              color="orange"
+              iconBgClass="bg-orange-400/10"
+              iconTextClass="text-orange-500"
+            />
+          </Link>
+          
+          <Link to="/dashboard">
+            <Feature
+              title="Insurance Pool"
+              description="BTC-backed insurance to protect lenders against defaults in the CoreZero ecosystem."
+              icon="wallet"
+              color="blue"
+              iconBgClass="bg-blue-400/10"
+              iconTextClass="text-blue-500"
+            />
+          </Link>
         </div>
       </div>
     </section>

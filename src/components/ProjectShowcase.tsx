@@ -1,79 +1,134 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { coreZeroLendingService } from '@/services/CoreZeroLendingService';
+import { revenueOracleService } from '@/services/RevenueOracleService';
+import { useWallet } from '@/hooks/useWallet';
+import { toast } from '@/hooks/use-toast';
 
 const ProjectShowcase = () => {
-  // Sample project data
-  const projects = [
-    {
-      id: 1,
-      name: "DeFi Protocol Alpha",
-      description: "Decentralized lending and borrowing platform with Core-native BTC staking integration",
-      logo: "A",
-      category: "DeFi",
-      fundingAmount: 120000,
-      revenueShare: 15,
-      progress: 68,
-      color: "purple",
-    },
-    {
-      id: 2,
-      name: "BTCfi Vault",
-      description: "Secure yield aggregator leveraging Core's dual staking mechanism",
-      logo: "B",
-      category: "Yield",
-      fundingAmount: 85000,
-      revenueShare: 20,
-      progress: 32,
-      color: "blue",
-    },
-    {
-      id: 3,
-      name: "CoreDAO Dashboard",
-      description: "Analytics platform for Core ecosystem projects and governance",
-      logo: "C",
-      category: "Analytics",
-      fundingAmount: 50000,
-      revenueShare: 12,
-      progress: 91,
-      color: "cyan",
-    },
-    {
-      id: 4,
-      name: "Satoshi+ Bridge",
-      description: "Cross-chain bridge secured by Core's Satoshi Plus consensus",
-      logo: "S",
-      category: "Infrastructure",
-      fundingAmount: 200000,
-      revenueShare: 18,
-      progress: 45,
-      color: "amber",
-    },
-    {
-      id: 5,
-      name: "CoreNFT Marketplace",
-      description: "NFT platform with BTC native assets and stCORE rewards",
-      logo: "N",
-      category: "NFT",
-      fundingAmount: 75000,
-      revenueShare: 15,
-      progress: 76,
-      color: "pink",
-    },
-    {
-      id: 6,
-      name: "Bitcoin Launchpad",
-      description: "IDO platform for Core ecosystem projects with BTC staking integration",
-      logo: "L",
-      category: "Launchpad",
-      fundingAmount: 150000,
-      revenueShare: 25,
-      progress: 54,
-      color: "orange",
-    }
-  ];
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { isConnected } = useWallet();
+
+  // Colors for project logos
+  const colors = ["purple", "blue", "cyan", "amber", "pink", "orange"];
+
+  useEffect(() => {
+    const fetchActiveProjects = async () => {
+      setLoading(true);
+      try {
+        // In a real application, we would fetch actual projects from the blockchain
+        // This is a simplified version for demo purposes
+        const projectsData = [];
+        
+        // Let's assume we can fetch up to 10 projects
+        for (let i = 1; i <= 6; i++) {
+          try {
+            const projectData = await coreZeroLendingService.getLoanProposal(i);
+            
+            if (projectData && projectData.state === 2) { // Assuming state 2 is "Active"
+              // Get revenue data from oracle
+              const revenueData = await revenueOracleService.getLatestVerifiedRevenue(i);
+              
+              // Calculate repayment progress
+              const totalRepaid = parseFloat(projectData.totalRepaid);
+              const amount = parseFloat(projectData.amount);
+              const progress = amount > 0 ? (totalRepaid / amount) * 100 : 0;
+              
+              projectsData.push({
+                id: projectData.id,
+                name: projectData.projectName,
+                description: projectData.projectDescription,
+                logo: projectData.projectName.charAt(0), // Use first letter as logo
+                category: i % 2 === 0 ? "DeFi" : i % 3 === 0 ? "Infrastructure" : "Yield",
+                fundingAmount: amount,
+                revenueShare: projectData.revenueSharePercentage,
+                progress: Math.min(Math.round(progress), 100),
+                color: colors[i % colors.length],
+                borrower: projectData.borrower
+              });
+              
+              if (projectsData.length >= 6) break; // Limit to 6 projects for now
+            }
+          } catch (error) {
+            console.error(`Error fetching project ${i}:`, error);
+            // Continue to next project
+          }
+        }
+        
+        // If no projects are found or there's an error, use fallback data
+        if (projectsData.length === 0) {
+          projectsData.push(
+            {
+              id: 1,
+              name: "DeFi Protocol Alpha",
+              description: "Decentralized lending and borrowing platform with Core-native BTC staking integration",
+              logo: "A",
+              category: "DeFi",
+              fundingAmount: 120000,
+              revenueShare: 15,
+              progress: 68,
+              color: "purple",
+            },
+            {
+              id: 2,
+              name: "BTCfi Vault",
+              description: "Secure yield aggregator leveraging Core's dual staking mechanism",
+              logo: "B",
+              category: "Yield",
+              fundingAmount: 85000,
+              revenueShare: 20,
+              progress: 32,
+              color: "blue",
+            },
+            {
+              id: 3,
+              name: "CoreDAO Dashboard",
+              description: "Analytics platform for Core ecosystem projects and governance",
+              logo: "C",
+              category: "Analytics",
+              fundingAmount: 50000,
+              revenueShare: 12,
+              progress: 91,
+              color: "cyan",
+            }
+          );
+        }
+        
+        setProjects(projectsData);
+      } catch (error) {
+        console.error("Error loading projects:", error);
+        toast({
+          title: "Error loading projects",
+          description: "Failed to load project data. Please try again.",
+          variant: "destructive",
+        });
+        
+        // Fallback data
+        setProjects([
+          {
+            id: 1,
+            name: "DeFi Protocol Alpha",
+            description: "Decentralized lending and borrowing platform with Core-native BTC staking integration",
+            logo: "A",
+            category: "DeFi",
+            fundingAmount: 120000,
+            revenueShare: 15,
+            progress: 68,
+            color: "purple",
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchActiveProjects();
+  }, []);
 
   // Helper function to get logo background color based on the color property
   const getLogoColor = (color: string) => {
@@ -101,50 +156,70 @@ const ProjectShowcase = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project, index) => (
-            <Card key={project.id} className="hover-scale animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
-              <CardHeader className="pb-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div className={`w-10 h-10 rounded-lg ${getLogoColor(project.color)} flex items-center justify-center text-white font-bold`}>
-                    {project.logo}
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-corezero-purple"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((project, index) => (
+              <Card key={project.id} className="hover-scale animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+                <CardHeader className="pb-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className={`w-10 h-10 rounded-lg ${getLogoColor(project.color)} flex items-center justify-center text-white font-bold`}>
+                      {project.logo}
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+                      {project.category}
+                    </span>
                   </div>
-                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                    {project.category}
-                  </span>
-                </div>
-                <CardTitle className="text-xl">{project.name}</CardTitle>
-                <CardDescription>{project.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                  <CardTitle className="text-xl">{project.name}</CardTitle>
+                  <CardDescription>{project.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Funding Amount</p>
+                      <p className="font-medium">${project.fundingAmount.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Revenue Share</p>
+                      <p className="font-medium">{project.revenueShare}%</p>
+                    </div>
+                  </div>
+                  
                   <div>
-                    <p className="text-sm text-muted-foreground">Funding Amount</p>
-                    <p className="font-medium">${project.fundingAmount.toLocaleString()}</p>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Loan Repayment</span>
+                      <span>{project.progress}%</span>
+                    </div>
+                    <Progress value={project.progress} className="h-2" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Revenue Share</p>
-                    <p className="font-medium">{project.revenueShare}%</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Loan Repayment</span>
-                    <span>{project.progress}%</span>
-                  </div>
-                  <Progress value={project.progress} className="h-2" />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" size="sm" className="w-full">View Details</Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+                <CardFooter>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => {
+                      toast({
+                        title: "Project Details",
+                        description: `View complete details for ${project.name}`,
+                      });
+                    }}
+                  >
+                    View Details
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
         
         <div className="text-center mt-12">
-          <Button variant="outline" className="border-corezero-purple text-corezero-purple">View All Projects</Button>
+          <Link to="/loans">
+            <Button variant="outline" className="border-corezero-purple text-corezero-purple">View All Projects</Button>
+          </Link>
         </div>
       </div>
     </section>

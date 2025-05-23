@@ -1,21 +1,19 @@
 
 import React from 'react';
 import Navigation from "@/components/Navigation";
-import Hero from "@/components/Hero";
-import Features from "@/components/Features";
+import StakingInterface from "@/components/StakingInterface";
 import Footer from "@/components/Footer";
 
-const Index = () => {
+const StakingPage = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navigation />
       <main className="flex-grow mt-16">
-        <Hero />
-        <Features />
+        <StakingInterface />
       </main>
       <Footer />
     </div>
   );
 };
 
-export default Index;
+export default StakingPage;

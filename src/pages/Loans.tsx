@@ -1,21 +1,21 @@
 
 import React from 'react';
 import Navigation from "@/components/Navigation";
-import Hero from "@/components/Hero";
-import Features from "@/components/Features";
+import LoanApplication from "@/components/LoanApplication";
+import ProjectShowcase from "@/components/ProjectShowcase";
 import Footer from "@/components/Footer";
 
-const Index = () => {
+const LoansPage = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navigation />
       <main className="flex-grow mt-16">
-        <Hero />
-        <Features />
+        <ProjectShowcase />
+        <LoanApplication />
       </main>
       <Footer />
     </div>
   );
 };
 
-export default Index;
+export default LoansPage;
