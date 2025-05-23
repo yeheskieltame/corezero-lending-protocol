@@ -3,6 +3,13 @@ import { ethers, parseEther, formatEther, Contract } from 'ethers';
 import { TokenABI } from '../lib/abis/TokenABI';
 import { CONTRACT_ADDRESSES } from '../lib/constants';
 
+interface TokenInfo {
+  balance: string;
+  formattedBalance: string;
+  symbol: string;
+  decimals: number;
+}
+
 class TokenService {
   private provider: ethers.BrowserProvider | null = null;
 
@@ -28,6 +35,48 @@ class TokenService {
       console.error("Error getting token balance:", error);
       return "0";
     }
+  }
+
+  // Get token info with additional metadata
+  async getTokenInfo(tokenAddress: string, userAddress: string): Promise<TokenInfo> {
+    try {
+      const contract = this.getTokenContract(tokenAddress);
+      const [balance, symbol, decimals] = await Promise.all([
+        contract.balanceOf(userAddress),
+        contract.symbol(),
+        contract.decimals()
+      ]);
+      
+      return {
+        balance: balance.toString(),
+        formattedBalance: formatEther(balance),
+        symbol,
+        decimals
+      };
+    } catch (error) {
+      console.error("Error getting token info:", error);
+      return {
+        balance: "0",
+        formattedBalance: "0",
+        symbol: "UNKNOWN",
+        decimals: 18
+      };
+    }
+  }
+
+  // Get BTC token info
+  async getBTCTokenInfo(userAddress: string): Promise<TokenInfo> {
+    return this.getTokenInfo(CONTRACT_ADDRESSES.BTC_TOKEN, userAddress);
+  }
+
+  // Get stCORE token info
+  async getStCORETokenInfo(userAddress: string): Promise<TokenInfo> {
+    return this.getTokenInfo(CONTRACT_ADDRESSES.STCORE_TOKEN, userAddress);
+  }
+
+  // Get CORE token info
+  async getCORETokenInfo(userAddress: string): Promise<TokenInfo> {
+    return this.getTokenInfo(CONTRACT_ADDRESSES.CORE_TOKEN, userAddress);
   }
 
   // Get BTC token balance
