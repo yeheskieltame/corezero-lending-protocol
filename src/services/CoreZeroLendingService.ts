@@ -1,22 +1,22 @@
 
-import { ethers } from 'ethers';
+import { ethers, parseEther, formatEther } from 'ethers';
 import { CoreZeroLendingABI } from '../lib/abis/CoreZeroLendingABI';
 import { CONTRACT_ADDRESSES } from '../lib/constants';
 
 export enum LoanState {
   PENDING = 0,
-  APPROVED = 1,
-  ACTIVE = 2,
-  REPAID = 3,
-  DEFAULTED = 4
+  ACTIVE = 1,
+  COMPLETED = 2,
+  DEFAULTED = 3,
+  CANCELLED = 4
 }
 
 export interface LoanProposal {
-  id: string;
+  id: number;
   borrower: string;
   amount: string;
   term: number;
-  revenueSharePercentage: string;
+  revenueSharePercentage: number;
   projectName: string;
   projectDescription: string;
   reputationScore: number;
@@ -25,19 +25,15 @@ export interface LoanProposal {
   createdAt: number;
   activatedAt: number;
   totalRepaid: string;
-  formattedAmount: string;
-  formattedRevenueShare: string;
-  formattedTotalRepaid: string;
-  progressPercentage: number;
 }
 
 class CoreZeroLendingService {
-  private provider: ethers.providers.Web3Provider | null = null;
+  private provider: ethers.BrowserProvider | null = null;
   private contract: ethers.Contract | null = null;
 
   constructor() {
     if (typeof window !== 'undefined' && window.ethereum) {
-      this.provider = new ethers.providers.Web3Provider(window.ethereum);
+      this.provider = new ethers.BrowserProvider(window.ethereum);
       this.contract = new ethers.Contract(
         CONTRACT_ADDRESSES.CORE_ZERO_LENDING,
         CoreZeroLendingABI,
@@ -46,41 +42,36 @@ class CoreZeroLendingService {
     }
   }
 
-  private async getSigner() {
-    if (!this.provider) throw new Error("Provider not initialized");
-    return this.provider.getSigner();
-  }
-
-  // Create a loan proposal
+  // Create a new loan proposal
   async createLoanProposal(
-    amount: string, 
-    term: number, 
-    revenueSharePercentage: number, 
-    projectName: string, 
+    amount: string,
+    term: number,
+    revenueSharePercentage: number,
+    projectName: string,
     projectDescription: string
-  ): Promise<string> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+  ): Promise<number> {
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const amountWei = ethers.utils.parseEther(amount);
-      const revenueShareBasisPoints = Math.floor(revenueSharePercentage * 100); // Convert to basis points (20% → 2000)
-      
-      const tx = await this.contract.connect(signer).createLoanProposal(
+      const signer = await this.provider.getSigner();
+      const amountWei = parseEther(amount);
+
+      const contractWithSigner = this.contract.connect(signer);
+      const createTx = await contractWithSigner.createLoanProposal(
         amountWei,
         term,
-        revenueShareBasisPoints,
+        revenueSharePercentage,
         projectName,
         projectDescription
       );
       
-      const receipt = await tx.wait();
+      const receipt = await createTx.wait();
       
-      // Find the event with loan proposal id
-      const event = receipt.events?.find(e => e.event === 'LoanProposalCreated');
-      const loanId = event ? event.args.id.toString() : '0';
-      
-      return loanId;
+      // Extract loan ID from event logs
+      const loanId = receipt.logs[0]?.topics[1];
+      return parseInt(loanId, 16);
     } catch (error) {
       console.error("Error creating loan proposal:", error);
       throw error;
@@ -88,62 +79,47 @@ class CoreZeroLendingService {
   }
 
   // Get loan proposal details
-  async getLoanProposal(id: string): Promise<LoanProposal> {
+  async getLoanProposal(id: number): Promise<LoanProposal | null> {
     if (!this.contract) throw new Error("Contract not initialized");
     
     try {
       const proposal = await this.contract.getLoanProposal(id);
-      const formattedAmount = ethers.utils.formatEther(proposal.amount);
-      const formattedRevenueShare = (proposal.revenueSharePercentage.toNumber() / 100).toFixed(2) + '%';
-      const formattedTotalRepaid = ethers.utils.formatEther(proposal.totalRepaid);
-      
-      // Calculate repayment progress percentage
-      let progressPercentage = 0;
-      if (proposal.amount.gt(0) && proposal.state === LoanState.ACTIVE) {
-        progressPercentage = Math.min(
-          100,
-          Math.floor(proposal.totalRepaid.mul(100).div(proposal.amount).toNumber())
-        );
-      } else if (proposal.state === LoanState.REPAID) {
-        progressPercentage = 100;
-      }
       
       return {
-        id: proposal.id.toString(),
+        id: Number(proposal.id),
         borrower: proposal.borrower,
-        amount: proposal.amount.toString(),
-        term: proposal.term.toNumber(),
-        revenueSharePercentage: proposal.revenueSharePercentage.toString(),
+        amount: formatEther(proposal.amount),
+        term: Number(proposal.term),
+        revenueSharePercentage: Number(proposal.revenueSharePercentage),
         projectName: proposal.projectName,
         projectDescription: proposal.projectDescription,
-        reputationScore: proposal.reputationScore.toNumber(),
-        votes: proposal.votes.toNumber(),
-        state: proposal.state,
-        createdAt: proposal.createdAt.toNumber(),
-        activatedAt: proposal.activatedAt.toNumber(),
-        totalRepaid: proposal.totalRepaid.toString(),
-        formattedAmount,
-        formattedRevenueShare,
-        formattedTotalRepaid,
-        progressPercentage
+        reputationScore: Number(proposal.reputationScore),
+        votes: Number(proposal.votes),
+        state: Number(proposal.state),
+        createdAt: Number(proposal.createdAt),
+        activatedAt: Number(proposal.activatedAt),
+        totalRepaid: formatEther(proposal.totalRepaid)
       };
     } catch (error) {
       console.error("Error getting loan proposal:", error);
-      throw error;
+      return null;
     }
   }
 
   // Repay loan
-  async repayLoan(id: string, amount: string): Promise<boolean> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+  async repayLoan(id: number, amount: string): Promise<boolean> {
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const amountWei = ethers.utils.parseEther(amount);
-      
-      const tx = await this.contract.connect(signer).repayLoan(id, amountWei);
-      await tx.wait();
-      
+      const signer = await this.provider.getSigner();
+      const amountWei = parseEther(amount);
+
+      const contractWithSigner = this.contract.connect(signer);
+      const repayTx = await contractWithSigner.repayLoan(id, amountWei);
+      await repayTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error repaying loan:", error);
@@ -151,14 +127,21 @@ class CoreZeroLendingService {
     }
   }
 
-  // Check if loan is in specific state
-  async isLoanInState(id: string, state: LoanState): Promise<boolean> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+  // Activate loan (admin function)
+  async activateLoan(id: number): Promise<boolean> {
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      return await this.contract.isLoanInState(id, state);
+      const signer = await this.provider.getSigner();
+      const contractWithSigner = this.contract.connect(signer);
+      const activateTx = await contractWithSigner.activateLoan(id);
+      await activateTx.wait();
+
+      return true;
     } catch (error) {
-      console.error("Error checking loan state:", error);
+      console.error("Error activating loan:", error);
       throw error;
     }
   }

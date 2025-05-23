@@ -1,15 +1,13 @@
 
-import { ethers } from 'ethers';
+import { ethers, parseEther, formatEther } from 'ethers';
 import { BTCInsurancePoolABI } from '../lib/abis/BTCInsurancePoolABI';
 import { TokenABI } from '../lib/abis/TokenABI';
 import { CONTRACT_ADDRESSES } from '../lib/constants';
 
-// Define stake types as per the contract
 export enum StakeType {
-  NONE = 0,
-  BTC = 1,
-  STCORE = 2,
-  DUAL = 3
+  BTC_ONLY = 0,
+  STCORE_ONLY = 1,
+  DUAL = 2
 }
 
 export interface StakerInfo {
@@ -18,36 +16,25 @@ export interface StakerInfo {
   stakingStartTime: number;
   rewardsClaimed: string;
   stakeType: StakeType;
-  formattedBtcAmount: string;
-  formattedStCoreAmount: string;
-  formattedRewardsClaimed: string;
 }
 
 export interface PoolStats {
-  btcAmount: string;
-  stCoreAmount: string;
-  formattedBtcAmount: string;
-  formattedStCoreAmount: string;
-  totalValueLocked: string;
-  coverageRatio: string;
-  utilizationRate: string;
-}
-
-export interface APYRates {
-  btcApy: string;
-  stCoreApy: string;
-  dualApy: string;
+  totalBTCStaked: string;
+  totalStCoreStaked: string;
+  btcAPY: string;
+  stCoreAPY: string;
+  dualAPY: string;
 }
 
 class BTCInsurancePoolService {
-  private provider: ethers.providers.Web3Provider | null = null;
+  private provider: ethers.BrowserProvider | null = null;
   private contract: ethers.Contract | null = null;
   private btcTokenContract: ethers.Contract | null = null;
   private stCoreTokenContract: ethers.Contract | null = null;
 
   constructor() {
     if (typeof window !== 'undefined' && window.ethereum) {
-      this.provider = new ethers.providers.Web3Provider(window.ethereum);
+      this.provider = new ethers.BrowserProvider(window.ethereum);
       this.contract = new ethers.Contract(
         CONTRACT_ADDRESSES.BTC_INSURANCE_POOL,
         BTCInsurancePoolABI,
@@ -66,33 +53,28 @@ class BTCInsurancePoolService {
     }
   }
 
-  private async getSigner() {
-    if (!this.provider) throw new Error("Provider not initialized");
-    return this.provider.getSigner();
-  }
-
   // Get staker information
   async getStakerInfo(address: string): Promise<StakerInfo> {
     if (!this.contract) throw new Error("Contract not initialized");
     
     try {
       const stakerInfo = await this.contract.getStakerInfo(address);
-      const btcDecimals = await this.btcTokenContract?.decimals() || 8;
-      const stCoreDecimals = await this.stCoreTokenContract?.decimals() || 18;
-      
       return {
-        btcAmount: stakerInfo.btcAmount.toString(),
-        stCoreAmount: stakerInfo.stCoreAmount.toString(),
-        stakingStartTime: stakerInfo.stakingStartTime.toNumber(),
-        rewardsClaimed: stakerInfo.rewardsClaimed.toString(),
-        stakeType: stakerInfo.stakeType,
-        formattedBtcAmount: ethers.utils.formatUnits(stakerInfo.btcAmount, btcDecimals),
-        formattedStCoreAmount: ethers.utils.formatUnits(stakerInfo.stCoreAmount, stCoreDecimals),
-        formattedRewardsClaimed: ethers.utils.formatEther(stakerInfo.rewardsClaimed)
+        btcAmount: formatEther(stakerInfo.btcAmount),
+        stCoreAmount: formatEther(stakerInfo.stCoreAmount),
+        stakingStartTime: Number(stakerInfo.stakingStartTime),
+        rewardsClaimed: formatEther(stakerInfo.rewardsClaimed),
+        stakeType: Number(stakerInfo.stakeType)
       };
     } catch (error) {
       console.error("Error getting staker info:", error);
-      throw error;
+      return {
+        btcAmount: "0",
+        stCoreAmount: "0",
+        stakingStartTime: 0,
+        rewardsClaimed: "0",
+        stakeType: StakeType.BTC_ONLY
+      };
     }
   }
 
@@ -101,95 +83,52 @@ class BTCInsurancePoolService {
     if (!this.contract) throw new Error("Contract not initialized");
     
     try {
-      const [btcAmount, stCoreAmount] = await this.contract.getTotalStaked();
-      const btcDecimals = await this.btcTokenContract?.decimals() || 8;
-      const stCoreDecimals = await this.stCoreTokenContract?.decimals() || 18;
-      
-      // Calculate TVL (simplified - in production would use price feeds)
-      const btcPrice = 65000; // Mock BTC price in USD
-      const stCorePrice = 0.85; // Mock stCORE price in USD
-      
-      const formattedBtcAmount = ethers.utils.formatUnits(btcAmount, btcDecimals);
-      const formattedStCoreAmount = ethers.utils.formatUnits(stCoreAmount, stCoreDecimals);
-      
-      const btcValue = parseFloat(formattedBtcAmount) * btcPrice;
-      const stCoreValue = parseFloat(formattedStCoreAmount) * stCorePrice;
-      const totalValueLocked = (btcValue + stCoreValue).toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD'
-      });
-      
-      // Mock coverage and utilization rates
-      const coverageRatio = "3.2x";
-      const utilizationRate = "72.5%";
-      
+      const [totalStaked, btcAPY, stCoreAPY, dualAPY] = await Promise.all([
+        this.contract.getTotalStaked(),
+        this.contract.getCurrentAPY(StakeType.BTC_ONLY),
+        this.contract.getCurrentAPY(StakeType.STCORE_ONLY),
+        this.contract.getCurrentAPY(StakeType.DUAL)
+      ]);
+
       return {
-        btcAmount: btcAmount.toString(),
-        stCoreAmount: stCoreAmount.toString(),
-        formattedBtcAmount,
-        formattedStCoreAmount,
-        totalValueLocked,
-        coverageRatio,
-        utilizationRate
+        totalBTCStaked: formatEther(totalStaked.btcAmount),
+        totalStCoreStaked: formatEther(totalStaked.stCoreAmount),
+        btcAPY: (Number(btcAPY) / 100).toString(),
+        stCoreAPY: (Number(stCoreAPY) / 100).toString(),
+        dualAPY: (Number(dualAPY) / 100).toString()
       };
     } catch (error) {
       console.error("Error getting pool stats:", error);
-      throw error;
-    }
-  }
-
-  // Get APY rates
-  async getAPYRates(): Promise<APYRates> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
-    try {
-      const btcApy = await this.contract.getCurrentAPY(StakeType.BTC);
-      const stCoreApy = await this.contract.getCurrentAPY(StakeType.STCORE);
-      const dualApy = await this.contract.getCurrentAPY(StakeType.DUAL);
-      
-      // Convert basis points to percentage
-      const formatAPY = (basisPoints: ethers.BigNumber) => {
-        return (basisPoints.toNumber() / 100).toFixed(2) + '%';
-      };
-      
       return {
-        btcApy: formatAPY(btcApy),
-        stCoreApy: formatAPY(stCoreApy),
-        dualApy: formatAPY(dualApy)
-      };
-    } catch (error) {
-      console.error("Error getting APY rates:", error);
-      // Fallback to hardcoded values if contract call fails
-      return {
-        btcApy: '12.4%',
-        stCoreApy: '8.9%',
-        dualApy: '15.9%'
+        totalBTCStaked: "0",
+        totalStCoreStaked: "0",
+        btcAPY: "0",
+        stCoreAPY: "0",
+        dualAPY: "0"
       };
     }
   }
 
-  // Stake BTC
+  // Stake BTC tokens
   async stakeBTC(amount: string): Promise<boolean> {
-    if (!this.contract || !this.btcTokenContract) throw new Error("Contracts not initialized");
-    
+    if (!this.contract || !this.btcTokenContract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const signerAddress = await signer.getAddress();
-      const btcDecimals = await this.btcTokenContract.decimals();
-      
-      const amountWei = ethers.utils.parseUnits(amount, btcDecimals);
-      
-      // Approve tokens first
-      const tx1 = await this.btcTokenContract.connect(signer).approve(
-        CONTRACT_ADDRESSES.BTC_INSURANCE_POOL,
-        amountWei
-      );
-      await tx1.wait();
-      
-      // Then stake
-      const tx2 = await this.contract.connect(signer).stakeBTC(amountWei);
-      await tx2.wait();
-      
+      const signer = await this.provider.getSigner();
+      const amountWei = parseEther(amount);
+
+      // Approve BTC tokens first
+      const btcTokenWithSigner = this.btcTokenContract.connect(signer);
+      const approveTx = await btcTokenWithSigner.approve(CONTRACT_ADDRESSES.BTC_INSURANCE_POOL, amountWei);
+      await approveTx.wait();
+
+      // Stake BTC
+      const contractWithSigner = this.contract.connect(signer);
+      const stakeTx = await contractWithSigner.stakeBTC(amountWei);
+      await stakeTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error staking BTC:", error);
@@ -197,28 +136,26 @@ class BTCInsurancePoolService {
     }
   }
 
-  // Stake stCORE
-  async stakeStCORE(amount: string): Promise<boolean> {
-    if (!this.contract || !this.stCoreTokenContract) throw new Error("Contracts not initialized");
-    
+  // Stake stCORE tokens
+  async stakeStCore(amount: string): Promise<boolean> {
+    if (!this.contract || !this.stCoreTokenContract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const signerAddress = await signer.getAddress();
-      const stCoreDecimals = await this.stCoreTokenContract.decimals();
-      
-      const amountWei = ethers.utils.parseUnits(amount, stCoreDecimals);
-      
-      // Approve tokens first
-      const tx1 = await this.stCoreTokenContract.connect(signer).approve(
-        CONTRACT_ADDRESSES.BTC_INSURANCE_POOL,
-        amountWei
-      );
-      await tx1.wait();
-      
-      // Then stake
-      const tx2 = await this.contract.connect(signer).stakeSTCore(amountWei);
-      await tx2.wait();
-      
+      const signer = await this.provider.getSigner();
+      const amountWei = parseEther(amount);
+
+      // Approve stCORE tokens first
+      const stCoreTokenWithSigner = this.stCoreTokenContract.connect(signer);
+      const approveTx = await stCoreTokenWithSigner.approve(CONTRACT_ADDRESSES.BTC_INSURANCE_POOL, amountWei);
+      await approveTx.wait();
+
+      // Stake stCORE
+      const contractWithSigner = this.contract.connect(signer);
+      const stakeTx = await contractWithSigner.stakeSTCore(amountWei);
+      await stakeTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error staking stCORE:", error);
@@ -226,36 +163,31 @@ class BTCInsurancePoolService {
     }
   }
 
-  // Stake dual (BTC + stCORE)
+  // Dual stake (BTC + stCORE)
   async stakeDual(btcAmount: string, stCoreAmount: string): Promise<boolean> {
-    if (!this.contract || !this.btcTokenContract || !this.stCoreTokenContract) 
-      throw new Error("Contracts not initialized");
-    
+    if (!this.contract || !this.btcTokenContract || !this.stCoreTokenContract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      const btcDecimals = await this.btcTokenContract.decimals();
-      const stCoreDecimals = await this.stCoreTokenContract.decimals();
-      
-      const btcAmountWei = ethers.utils.parseUnits(btcAmount, btcDecimals);
-      const stCoreAmountWei = ethers.utils.parseUnits(stCoreAmount, stCoreDecimals);
-      
-      // Approve tokens first
-      const tx1 = await this.btcTokenContract.connect(signer).approve(
-        CONTRACT_ADDRESSES.BTC_INSURANCE_POOL,
-        btcAmountWei
-      );
-      await tx1.wait();
-      
-      const tx2 = await this.stCoreTokenContract.connect(signer).approve(
-        CONTRACT_ADDRESSES.BTC_INSURANCE_POOL,
-        stCoreAmountWei
-      );
-      await tx2.wait();
-      
-      // Then stake
-      const tx3 = await this.contract.connect(signer).stakeDual(btcAmountWei, stCoreAmountWei);
-      await tx3.wait();
-      
+      const signer = await this.provider.getSigner();
+      const btcAmountWei = parseEther(btcAmount);
+      const stCoreAmountWei = parseEther(stCoreAmount);
+
+      // Approve both tokens
+      const btcTokenWithSigner = this.btcTokenContract.connect(signer);
+      const approveBTCTx = await btcTokenWithSigner.approve(CONTRACT_ADDRESSES.BTC_INSURANCE_POOL, btcAmountWei);
+      await approveBTCTx.wait();
+
+      const stCoreTokenWithSigner = this.stCoreTokenContract.connect(signer);
+      const approveStCoreTx = await stCoreTokenWithSigner.approve(CONTRACT_ADDRESSES.BTC_INSURANCE_POOL, stCoreAmountWei);
+      await approveStCoreTx.wait();
+
+      // Dual stake
+      const contractWithSigner = this.contract.connect(signer);
+      const stakeTx = await contractWithSigner.stakeDual(btcAmountWei, stCoreAmountWei);
+      await stakeTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error dual staking:", error);
@@ -263,22 +195,21 @@ class BTCInsurancePoolService {
     }
   }
 
-  // Unstake
+  // Unstake tokens
   async unstake(btcAmount: string, stCoreAmount: string): Promise<boolean> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      
-      const btcDecimals = await this.btcTokenContract?.decimals() || 8;
-      const stCoreDecimals = await this.stCoreTokenContract?.decimals() || 18;
-      
-      const btcAmountWei = ethers.utils.parseUnits(btcAmount, btcDecimals);
-      const stCoreAmountWei = ethers.utils.parseUnits(stCoreAmount, stCoreDecimals);
-      
-      const tx = await this.contract.connect(signer).unstake(btcAmountWei, stCoreAmountWei);
-      await tx.wait();
-      
+      const signer = await this.provider.getSigner();
+      const btcAmountWei = parseEther(btcAmount);
+      const stCoreAmountWei = parseEther(stCoreAmount);
+
+      const contractWithSigner = this.contract.connect(signer);
+      const unstakeTx = await contractWithSigner.unstake(btcAmountWei, stCoreAmountWei);
+      await unstakeTx.wait();
+
       return true;
     } catch (error) {
       console.error("Error unstaking:", error);
@@ -288,19 +219,17 @@ class BTCInsurancePoolService {
 
   // Claim rewards
   async claimRewards(): Promise<string> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
+    if (!this.contract || !this.provider) {
+      throw new Error("Contract not initialized");
+    }
+
     try {
-      const signer = await this.getSigner();
-      
-      const tx = await this.contract.connect(signer).claimRewards();
-      const receipt = await tx.wait();
-      
-      // Find the event with claimed amount
-      const event = receipt.events?.find(e => e.event === 'RewardsClaimed');
-      const claimedAmount = event ? ethers.utils.formatEther(event.args.amount) : '0';
-      
-      return claimedAmount;
+      const signer = await this.provider.getSigner();
+      const contractWithSigner = this.contract.connect(signer);
+      const claimTx = await contractWithSigner.claimRewards();
+      const receipt = await claimTx.wait();
+
+      return formatEther(receipt.logs[0]?.data || "0");
     } catch (error) {
       console.error("Error claiming rewards:", error);
       throw error;

@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getDefaultConfig, RainbowKitProvider, connectorsForWallets } from '@rainbow-me/rainbowkit';
-import { metaMaskWallet, coinbaseWallet, rainbowWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
+import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { WagmiProvider, createConfig, http } from 'wagmi';
 import { Chain } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,7 +10,6 @@ import { CHAIN_ID, CHAIN_NAME, CHAIN_RPC_URL } from '../lib/constants';
 const coreChain: Chain = {
   id: CHAIN_ID,
   name: CHAIN_NAME,
-  network: CHAIN_NAME.toLowerCase(),
   nativeCurrency: {
     name: 'CORE',
     symbol: 'CORE',
@@ -27,31 +25,16 @@ const coreChain: Chain = {
   },
 };
 
-// Configure connectors
-const connectors = connectorsForWallets([
-  {
-    groupName: 'Recommended',
-    wallets: [
-      metaMaskWallet({ projectId: 'core-zero', chains: [coreChain] }),
-      coinbaseWallet({ appName: 'CoreZero', chains: [coreChain] }),
-      rainbowWallet({ projectId: 'core-zero', chains: [coreChain] }),
-      walletConnectWallet({ projectId: 'core-zero', chains: [coreChain] }),
-    ],
+// Create wagmi config using getDefaultConfig
+const config = getDefaultConfig({
+  appName: 'CoreZero',
+  projectId: 'core-zero-demo', // Simple project ID for demo
+  chains: [coreChain],
+  transports: {
+    [CHAIN_ID]: http(CHAIN_RPC_URL),
   },
-]);
-
-// Create wagmi config
-const config = createConfig(
-  getDefaultConfig({
-    appName: 'CoreZero',
-    projectId: 'core-zero',
-    chains: [coreChain],
-    transports: {
-      [CHAIN_ID]: http(CHAIN_RPC_URL),
-    },
-    ssr: true,
-  })
-);
+  ssr: true,
+});
 
 // Create React Query client
 const queryClient = new QueryClient();

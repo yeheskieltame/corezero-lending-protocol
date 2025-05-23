@@ -4,12 +4,12 @@ import { ReputationSystemABI } from '../lib/abis/ReputationSystemABI';
 import { CONTRACT_ADDRESSES } from '../lib/constants';
 
 class ReputationSystemService {
-  private provider: ethers.providers.Web3Provider | null = null;
+  private provider: ethers.BrowserProvider | null = null;
   private contract: ethers.Contract | null = null;
 
   constructor() {
     if (typeof window !== 'undefined' && window.ethereum) {
-      this.provider = new ethers.providers.Web3Provider(window.ethereum);
+      this.provider = new ethers.BrowserProvider(window.ethereum);
       this.contract = new ethers.Contract(
         CONTRACT_ADDRESSES.REPUTATION_SYSTEM,
         ReputationSystemABI,
@@ -24,7 +24,7 @@ class ReputationSystemService {
     
     try {
       const score = await this.contract.getReputationScore(address);
-      return score.toNumber();
+      return Number(score);
     } catch (error) {
       console.error("Error getting reputation score:", error);
       // Return default score if there's an error
@@ -49,9 +49,9 @@ class ReputationSystemService {
     if (!this.contract) throw new Error("Contract not initialized");
     
     try {
-      const amountWei = ethers.utils.parseEther(amount);
+      const amountWei = ethers.parseEther(amount);
       const minScore = await this.contract.getMinimumReputationScoreForLoan(amountWei, term);
-      return minScore.toNumber();
+      return Number(minScore);
     } catch (error) {
       console.error("Error getting minimum reputation score:", error);
       // Return a fallback value
