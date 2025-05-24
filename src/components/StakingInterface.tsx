@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,6 @@ import { Progress } from "@/components/ui/progress";
 import { useWallet } from '@/hooks/useWallet';
 import { useToast } from '@/hooks/use-toast';
 import { btcInsurancePoolService, StakeType } from '@/services/BTCInsurancePoolService';
-import { tokenService } from '@/services/TokenService';
 import { formatNumber } from '@/lib/utils';
 
 const StakingInterface = () => {
@@ -27,7 +27,15 @@ const StakingInterface = () => {
     dualApy: '15.9%'
   });
   
-  const { isConnected, address, isCorrectChain } = useWallet();
+  const { 
+    isConnected, 
+    address, 
+    isCorrectChain, 
+    btcBalance, 
+    stCoreBalance, 
+    coreBalance,
+    isLoading: balanceLoading 
+  } = useWallet();
   const { toast } = useToast();
 
   // Load staking data
@@ -242,6 +250,13 @@ const StakingInterface = () => {
     }
   };
 
+  // Get current balance for selected currency
+  const getCurrentBalance = () => {
+    if (selectedCurrency === 'BTC') return btcBalance;
+    if (selectedCurrency === 'CORE') return stCoreBalance;
+    return '0';
+  };
+
   // Conditional rendering for wallet not connected
   if (!isConnected || !isCorrectChain) {
     return (
@@ -348,7 +363,7 @@ const StakingInterface = () => {
                     <div className="flex justify-between">
                       <Label htmlFor="stake-amount">Amount</Label>
                       <span className="text-sm text-muted-foreground">
-                        Balance: {selectedCurrency === 'BTC' ? '0.42' : '1,250'} {selectedCurrency}
+                        Balance: {balanceLoading ? '...' : getCurrentBalance()} {selectedCurrency}
                       </span>
                     </div>
                     <div className="relative">
@@ -363,7 +378,7 @@ const StakingInterface = () => {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={() => setAmount(selectedCurrency === 'BTC' ? '0.42' : '1250')}
+                          onClick={() => setAmount(getCurrentBalance())}
                         >
                           MAX
                         </Button>
@@ -385,8 +400,8 @@ const StakingInterface = () => {
                     <div className="flex justify-between">
                       <span className="text-sm">Pool Share</span>
                       <span className="text-sm font-medium">
-                        {amount && !isNaN(parseFloat(amount)) ? 
-                          `${(parseFloat(amount) / (selectedCurrency === 'BTC' ? 125 : 75000) * 100).toFixed(4)}%` : 
+                        {amount && !isNaN(parseFloat(amount)) && poolStats ? 
+                          `${(parseFloat(amount) / parseFloat(selectedCurrency === 'BTC' ? poolStats.totalBTCStaked : poolStats.totalStCoreStaked) * 100).toFixed(4)}%` : 
                           '0%'
                         }
                       </span>
@@ -417,6 +432,9 @@ const StakingInterface = () => {
                           value={btcAmount}
                           onChange={(e) => setBtcAmount(e.target.value)}
                         />
+                        <span className="text-xs text-muted-foreground">
+                          Balance: {balanceLoading ? '...' : btcBalance} BTC
+                        </span>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="stcore-amount">stCORE Amount</Label>
@@ -426,6 +444,9 @@ const StakingInterface = () => {
                           value={stCoreAmount}
                           onChange={(e) => setStCoreAmount(e.target.value)}
                         />
+                        <span className="text-xs text-muted-foreground">
+                          Balance: {balanceLoading ? '...' : stCoreBalance} stCORE
+                        </span>
                       </div>
                     </div>
                     
@@ -476,7 +497,7 @@ const StakingInterface = () => {
                       <Label htmlFor="unstake-amount">Amount</Label>
                       <span className="text-sm text-muted-foreground">
                         Staked: {selectedCurrency === 'BTC' ? 
-                          (stakerInfo ? formatNumber(stakerInfo.btcAmount, 4) : '0.00') : 
+                          (stakerInfo ? formatNumber(stakerInfo.btcAmount, 4) : '0.0000') : 
                           (stakerInfo ? formatNumber(stakerInfo.stCoreAmount, 2) : '0.00')
                         } {selectedCurrency}
                       </span>
@@ -552,45 +573,21 @@ const StakingInterface = () => {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Total Value Locked</span>
+                  <span>Total BTC Staked</span>
                   <span className="font-medium">
-                    {poolStats?.totalValueLocked || '$2,845,632'}
+                    {poolStats ? formatNumber(poolStats.totalBTCStaked, 2) : '0'} BTC
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>BTC Staked</span>
+                  <span>Total stCORE Staked</span>
                   <span className="font-medium">
-                    {poolStats ? formatNumber(poolStats.totalBTCStaked, 2) : '125'} BTC
+                    {poolStats ? formatNumber(poolStats.totalStCoreStaked, 0) : '0'} stCORE
                   </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>stCORE Staked</span>
-                  <span className="font-medium">
-                    {poolStats ? formatNumber(poolStats.totalStCoreStaked, 0) : '75,000'} stCORE
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Pool Utilization</span>
-                    <span>{poolStats?.utilizationRate || '72.5%'}</span>
-                  </div>
-                  <Progress value={72.5} className="h-2" />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Coverage Ratio</span>
-                    <span>{poolStats?.coverageRatio || '3.2x'}</span>
-                  </div>
-                  <Progress value={80} className="h-2" />
                 </div>
               </div>
               
               <div className="rounded-xl p-4 bg-gradient-to-br from-corezero-purple/20 to-corezero-accent/10 border border-corezero-purple/20">
-                <h4 className="font-medium mb-2">Rewards Distribution</h4>
+                <h4 className="font-medium mb-2">Current APY Rates</h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>BTC APY</span>
@@ -636,22 +633,6 @@ const StakingInterface = () => {
                       {stakerInfo ? formatNumber(stakerInfo.rewardsClaimed, 4) : '0.0000'} CORE
                     </span>
                   </div>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium mb-2">Recent Pool Activities</h4>
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">
-                        {i === 1 ? "0x3f...8a9d staked 0.5 BTC" :
-                         i === 2 ? "0x7c...2e4f claimed 25 CORE rewards" :
-                         "New loan covered: Protocol Beta"}
-                      </span>
-                      <span className="text-muted-foreground">{i * 2}h ago</span>
-                    </div>
-                  ))}
                 </div>
               </div>
             </CardContent>

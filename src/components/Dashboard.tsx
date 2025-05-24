@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import Chart from './Chart';
+import InvestmentDashboard from './InvestmentDashboard';
 
 const Dashboard = () => {
   return (
@@ -196,21 +196,13 @@ const Dashboard = () => {
                 <CardDescription>Manage your current loans</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-center py-8">Select the Overview tab to see the dashboard.</p>
+                <p className="text-center py-8">Loan management features coming soon.</p>
               </CardContent>
             </Card>
           </TabsContent>
           
           <TabsContent value="investments">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Investments</CardTitle>
-                <CardDescription>Track your staking rewards and portfolio</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-center py-8">Select the Overview tab to see the dashboard.</p>
-              </CardContent>
-            </Card>
+            <InvestmentDashboard />
           </TabsContent>
           
           <TabsContent value="projects">
@@ -220,7 +212,7 @@ const Dashboard = () => {
                 <CardDescription>Monitor your project performance</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-center py-8">Select the Overview tab to see the dashboard.</p>
+                <p className="text-center py-8">Project management features coming soon.</p>
               </CardContent>
             </Card>
           </TabsContent>
