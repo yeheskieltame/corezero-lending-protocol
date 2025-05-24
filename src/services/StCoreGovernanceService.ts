@@ -1,6 +1,7 @@
 import { ethers, parseEther, formatEther, Contract } from 'ethers';
 import { StCoreGovernanceABI } from '../lib/abis/StCoreGovernanceABI';
 import { TokenABI } from '../lib/abis/TokenABI';
+import { btcInsurancePoolService } from './BTCInsurancePoolService';
 import { CONTRACT_ADDRESSES } from '../lib/constants';
 
 export enum ProposalState {
@@ -32,6 +33,13 @@ export interface VoteReceipt {
   votes: string;
 }
 
+export interface StakeholderInfo {
+  isEligible: boolean;
+  votingPower: string;
+  stakedAmount: string;
+  message: string;
+}
+
 class StCoreGovernanceService {
   private provider: ethers.BrowserProvider | null = null;
   private contract: Contract | null = null;
@@ -51,6 +59,50 @@ class StCoreGovernanceService {
         this.provider
       );
     }
+  }
+
+  // Get stakeholder information including voting eligibility
+  async getStakeholderInfo(account: string): Promise<StakeholderInfo> {
+    try {
+      // Get staker info from insurance pool
+      const stakerInfo = await btcInsurancePoolService.getStakerInfo(account);
+      const stakedAmount = stakerInfo.stCoreAmount;
+      const isEligible = parseFloat(stakedAmount) > 0;
+      
+      return {
+        isEligible,
+        votingPower: stakedAmount, // Voting power = staked stCORE amount
+        stakedAmount,
+        message: isEligible 
+          ? `You have ${stakedAmount} stCORE staked, giving you voting rights`
+          : 'You must stake stCORE tokens to participate in governance'
+      };
+    } catch (error) {
+      console.error("Error getting stakeholder info:", error);
+      return {
+        isEligible: false,
+        votingPower: "0",
+        stakedAmount: "0",
+        message: "Unable to verify staking status. Please try again."
+      };
+    }
+  }
+
+  // Get voting power for an account (now based on staked amount)
+  async getVotingPower(account: string): Promise<string> {
+    try {
+      const stakeholderInfo = await this.getStakeholderInfo(account);
+      return stakeholderInfo.votingPower;
+    } catch (error) {
+      console.error("Error getting voting power:", error);
+      return "0";
+    }
+  }
+
+  // Validate if user can vote
+  async canUserVote(account: string): Promise<boolean> {
+    const stakeholderInfo = await this.getStakeholderInfo(account);
+    return stakeholderInfo.isEligible;
   }
 
   // Get proposal details
@@ -110,7 +162,7 @@ class StCoreGovernanceService {
     }
   }
 
-  // Cast vote on proposal
+  // Cast vote on proposal (with stakeholder validation)
   async castVote(proposalId: number, support: boolean): Promise<string> {
     if (!this.contract || !this.provider) {
       throw new Error("Contract not initialized");
@@ -118,6 +170,14 @@ class StCoreGovernanceService {
 
     try {
       const signer = await this.provider.getSigner();
+      const signerAddress = await signer.getAddress();
+      
+      // Validate stakeholder eligibility before voting
+      const canVote = await this.canUserVote(signerAddress);
+      if (!canVote) {
+        throw new Error("You must stake stCORE tokens to participate in governance");
+      }
+
       const contractWithSigner = this.contract.connect(signer) as Contract;
       const voteTx = await contractWithSigner.castVote(proposalId, support);
       const receipt = await voteTx.wait();
@@ -146,19 +206,6 @@ class StCoreGovernanceService {
     } catch (error) {
       console.error("Error executing proposal:", error);
       throw error;
-    }
-  }
-
-  // Get voting power for an account
-  async getVotingPower(account: string): Promise<string> {
-    if (!this.contract) throw new Error("Contract not initialized");
-    
-    try {
-      const votingPower = await this.contract.getVotingPower(account);
-      return formatEther(votingPower);
-    } catch (error) {
-      console.error("Error getting voting power:", error);
-      return "0";
     }
   }
 
