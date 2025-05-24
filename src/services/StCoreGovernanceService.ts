@@ -1,4 +1,3 @@
-
 import { ethers, parseEther, formatEther, Contract } from 'ethers';
 import { StCoreGovernanceABI } from '../lib/abis/StCoreGovernanceABI';
 import { TokenABI } from '../lib/abis/TokenABI';
@@ -225,6 +224,39 @@ class StCoreGovernanceService {
     } catch (error) {
       console.error("Error getting vote receipt:", error);
       return { hasVoted: false, support: false, votes: "0" };
+    }
+  }
+
+  // Get active proposals
+  async getActiveProposals(): Promise<any[]> {
+    if (!this.contract) throw new Error("Contract not initialized");
+    
+    try {
+      // Since we don't have the actual contract deployed yet, return mock data for testing
+      // In production, this would query the actual contract for active proposals
+      return [
+        {
+          id: 1,
+          title: "Increase staking rewards",
+          description: "Proposal to increase staking rewards by 10% to incentivize more participation",
+          votesFor: "1250.5",
+          votesAgainst: "89.2", 
+          endDate: Math.floor(Date.now() / 1000) + 86400 * 7, // 7 days from now
+          state: 1 // Active
+        },
+        {
+          id: 2,
+          title: "Add new lending pool",
+          description: "Create a new lending pool for Web3 infrastructure projects",
+          votesFor: "890.0",
+          votesAgainst: "234.8",
+          endDate: Math.floor(Date.now() / 1000) + 86400 * 5, // 5 days from now
+          state: 1 // Active
+        }
+      ];
+    } catch (error) {
+      console.error("Error getting active proposals:", error);
+      return [];
     }
   }
 }

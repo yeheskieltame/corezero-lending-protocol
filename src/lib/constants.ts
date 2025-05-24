@@ -1,7 +1,7 @@
-// Contract addresses
+// Contract addresses for Core Testnet
 export const CONTRACT_ADDRESSES = {
   CORE_TOKEN: "0xc5285BB189C6011c83fDCFB0A7A03ecaAAf1F0C6",
-  STCORE_TOKEN: "0xaE571d7ca8d9Cca2bCE6a4166926366D572Aa221",
+  STCORE_TOKEN: "0xaE571d7ca8d9Cca2bCE6a4166926366D572Aa221", 
   BTC_TOKEN: "0x05070448B39B43b50D19711ca889782c6a56f0df",
   REPUTATION_SYSTEM: "0x06F623664d3aA5cb6B8DC48F05FC27b493959183",
   REVENUE_ORACLE: "0x98b5801b0770CA0Ab47d1fb6D2D64152c6bd347F",
@@ -10,10 +10,10 @@ export const CONTRACT_ADDRESSES = {
   STCORE_GOVERNANCE: "0x4b34b9cdA14ebbDCAED0337F2ACA3d1e06eF412E"
 };
 
-// Chain Info
-export const CHAIN_ID = 1116; // Core Chain
-export const CHAIN_NAME = "Core";
-export const CHAIN_RPC_URL = "https://rpc.coredao.org";
+// Chain Info - Updated to Core Testnet
+export const CHAIN_ID = 1114; // Core Testnet (0x45a)
+export const CHAIN_NAME = "Core Testnet";
+export const CHAIN_RPC_URL = "https://rpc.test2.btcs.network";
 
 // Other constants
 export const DEFAULT_REFRESH_INTERVAL = 15000; // 15 seconds

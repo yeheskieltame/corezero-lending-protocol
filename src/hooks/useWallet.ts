@@ -84,14 +84,14 @@ export const useWallet = () => {
             params: [
               {
                 chainId: `0x${CHAIN_ID.toString(16)}`,
-                chainName: 'Core Blockchain',
+                chainName: 'Core Testnet',
                 nativeCurrency: {
-                  name: 'CORE',
-                  symbol: 'CORE',
+                  name: 'tCORE2',
+                  symbol: 'tCORE2',
                   decimals: 18,
                 },
-                rpcUrls: ['https://rpc.coredao.org'],
-                blockExplorerUrls: ['https://scan.coredao.org'],
+                rpcUrls: ['https://rpc.test2.btcs.network'],
+                blockExplorerUrls: ['https://scan.test2.btcs.network'],
               },
             ],
           });
@@ -99,8 +99,8 @@ export const useWallet = () => {
         } catch (addError) {
           console.error("Error adding chain:", addError);
           toast({
-            title: "Failed to add Core chain",
-            description: "Please add the Core chain to your wallet manually.",
+            title: "Failed to add Core Testnet",
+            description: "Please add the Core Testnet to your wallet manually.",
             variant: "destructive"
           });
           return false;
@@ -109,7 +109,7 @@ export const useWallet = () => {
       console.error("Error switching chain:", switchError);
       toast({
         title: "Failed to switch chain",
-        description: "Please switch to the Core chain manually.",
+        description: "Please switch to the Core Testnet manually.",
         variant: "destructive"
       });
       return false;

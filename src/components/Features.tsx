@@ -23,7 +23,6 @@ const Features = () => {
               title="BTC Staking"
               description="Stake your BTC to earn stCORE rewards while contributing to Core's security and stability."
               icon="wallet"
-              color="amber"
               iconBgClass="bg-amber-400/10"
               iconTextClass="text-amber-500"
             />
@@ -34,7 +33,6 @@ const Features = () => {
               title="Revenue-Based Funding"
               description="Get non-collateralized funding for Core ecosystem projects with revenue sharing."
               icon="chevron-up"
-              color="purple"
               iconBgClass="bg-purple-400/10"
               iconTextClass="text-purple-500"
             />
@@ -45,7 +43,6 @@ const Features = () => {
               title="Decentralized Governance"
               description="Vote on CoreZero proposals, funding decisions, and protocol upgrades with stCORE."
               icon="layout-dashboard"
-              color="cyan"
               iconBgClass="bg-cyan-400/10"
               iconTextClass="text-cyan-500"
             />
@@ -56,7 +53,6 @@ const Features = () => {
               title="Revenue Oracle"
               description="Transparent and verifiable revenue tracking for funded projects using oracle technology."
               icon="layout-dashboard"
-              color="green"
               iconBgClass="bg-green-400/10"
               iconTextClass="text-green-500"
             />
@@ -67,7 +63,6 @@ const Features = () => {
               title="Reputation System"
               description="Developer reputation scoring that builds trust for uncollateralized lending."
               icon="settings"
-              color="orange"
               iconBgClass="bg-orange-400/10"
               iconTextClass="text-orange-500"
             />
@@ -78,7 +73,6 @@ const Features = () => {
               title="Insurance Pool"
               description="BTC-backed insurance to protect lenders against defaults in the CoreZero ecosystem."
               icon="wallet"
-              color="blue"
               iconBgClass="bg-blue-400/10"
               iconTextClass="text-blue-500"
             />
